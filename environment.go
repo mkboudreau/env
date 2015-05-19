@@ -2,6 +2,7 @@ package env
 
 import (
 	"fmt"
+	"os"
 )
 
 type Environment struct {
@@ -9,28 +10,25 @@ type Environment struct {
 }
 
 var (
-	Docker EnvReader = &DockerProvider{}
-
-	OperationSystem EnvReader = EnvReaderFunc(unimplemented)
-	Bluemix         EnvReader = EnvReaderFunc(unimplemented)
-	CloudFoundry    EnvReader = &CloudFoundryProvider{}
-	OpenShift       EnvReader = EnvReaderFunc(unimplemented)
-	Heroku          EnvReader = EnvReaderFunc(unimplemented)
-	AWS             EnvReader = EnvReaderFunc(unimplemented)
-	Azure           EnvReader = EnvReaderFunc(unimplemented)
+	Docker          EnvReader = &DockerProvider{}
+	CloudFoundry              = &CloudFoundryProvider{}
+	Bluemix                   = &CloudFoundryProvider{}
+	OpenShift                 = EnvReaderFunc(unimplemented)
+	Heroku                    = EnvReaderFunc(unimplemented)
+	AWS                       = EnvReaderFunc(unimplemented)
+	Azure                     = EnvReaderFunc(unimplemented)
+	OperatingSystem           = EnvReaderFunc(unimplemented)
 )
 
 func unimplemented(key string) string {
-	return "unimplemented"
+	return ""
 }
-
-var DEFAULT_ENVREADER_ORDER = []EnvReader{OperationSystem, Docker, CloudFoundry, OpenShift, Heroku, AWS, Azure}
 
 func NewEnvironment() *Environment {
-	return NewEnvironmentWithEnvReaders(DEFAULT_ENVREADER_ORDER)
+	return NewEnvironmentWithEnvReaders(Docker, CloudFoundry, OpenShift, Heroku, AWS, Azure)
 }
 
-func NewEnvironmentWithEnvReaders(readers []EnvReader) *Environment {
+func NewEnvironmentWithEnvReaders(readers ...EnvReader) *Environment {
 	return &Environment{Readers: readers}
 }
 
@@ -46,4 +44,34 @@ func (e *Environment) Getenv(key string) string {
 	}
 
 	return ""
+}
+
+func (e *Environment) SafeCopyToEnvironment(keys ...string) {
+	envToSet := make(map[string]string)
+	for _, key := range keys {
+		if os.Getenv(key) == "" {
+			if env := e.Getenv(key); env != "" {
+				envToSet[key] = env
+			}
+		}
+	}
+
+	for key, val := range envToSet {
+		os.Setenv(key, val)
+	}
+}
+
+func (e *Environment) CopyAndOverrideEnvironment(keys ...string) {
+	envToSet := make(map[string]string)
+	for _, key := range keys {
+		if env := e.Getenv(key); env != "" {
+			envToSet[key] = env
+		}
+	}
+
+	for key, val := range envToSet {
+		if err := os.Setenv(key, val); err != nil {
+			fmt.Println("Error overriding key:", key, "to val", val)
+		}
+	}
 }

@@ -1,37 +1,35 @@
 package env
 
-type OperationSystemProvider struct{}
+import (
+	"os"
+)
 
-func (er *OperationSystemProvider) Getenv(key string) string {
-	return "unimplemented"
-}
+type OperatingSystemProvider struct{}
 
-type CloudFoundryProvider struct{}
-
-func (er *CloudFoundryProvider) Getenv(key string) string {
-	return "unimplemented"
+func (er *OperatingSystemProvider) Getenv(key string) string {
+	return os.Getenv(key)
 }
 
 type OpenShiftProvider struct{}
 
 func (er *OpenShiftProvider) Getenv(key string) string {
-	return "unimplemented"
+	return ""
 }
 
 type HerokuProvider struct{}
 
 func (er *HerokuProvider) Getenv(key string) string {
-	return "unimplemented"
+	return ""
 }
 
 type AWSProvider struct{}
 
 func (er *AWSProvider) Getenv(key string) string {
-	return "unimplemented"
+	return ""
 }
 
 type AzureProvider struct{}
 
 func (er *AzureProvider) Getenv(key string) string {
-	return "unimplemented"
+	return ""
 }

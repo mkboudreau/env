@@ -20,11 +20,27 @@ func (er *DockerProvider) Getenv(key string) string {
 func extractDockerEnvironment() map[string]string {
 	normalizedEnvironment := make(map[string]string)
 
-	for _, entry := range os.Environ() {
-		splitEntry := strings.SplitN(entry, "=", 2)
-		key := splitEntry[0]
-		val := splitEntry[1]
+	candidates := getDockerPrefixAndKeys()
+	for _, keyList := range candidates {
+		if doesCandidateQualify(keyList) {
+			normalizedEnvironment = appendMap(normalizedEnvironment, normalizeDockerVars(keyList))
+		}
+	}
 
+	return normalizedEnvironment
+}
+
+func appendMap(initial map[string]string, additional map[string]string) map[string]string {
+	for k, v := range additional {
+		initial[k] = v
+	}
+	return initial
+}
+
+func normalizeDockerVars(keyList []string) map[string]string {
+	normalizedEnvironment := make(map[string]string)
+	for _, key := range keyList {
+		val := os.Getenv(key)
 		switch {
 		case strings.HasSuffix(key, "_PORT") && !strings.Contains(key, "_PORT_"):
 			url := fmt.Sprintf("%v_URL", strings.TrimSuffix(key, "_PORT"))
@@ -53,8 +69,53 @@ func extractDockerEnvironment() map[string]string {
 			normalizedEnvironment[envKey] = val
 		}
 	}
-
 	return normalizedEnvironment
+}
+
+func doesCandidateQualify(candidateList []string) bool {
+	return len(candidateList) >= 5
+}
+
+func getDockerPrefixAndKeys() map[string][]string {
+	candidates := make(map[string][]string)
+	for _, entry := range os.Environ() {
+		switch {
+		case strings.Contains(entry, "_PORT"):
+			candidates = appendEntryToMapSlice(candidates, entry)
+		case strings.Contains(entry, "_NAME"):
+			candidates = appendEntryToMapSlice(candidates, entry)
+		case strings.Contains(entry, "_PROTO"):
+			candidates = appendEntryToMapSlice(candidates, entry)
+		case strings.Contains(entry, "_ADDR"):
+			candidates = appendEntryToMapSlice(candidates, entry)
+		case strings.Contains(entry, "_ENV_"):
+			candidates = appendEntryToMapSlice(candidates, entry)
+		}
+	}
+	return candidates
+}
+
+func appendEntryToMapSlice(candidates map[string][]string, entry string) map[string][]string {
+	key := getEntryKey(entry)
+	prefix := strings.SplitN(key, "_", 2)[0]
+
+	envs := candidates[prefix]
+	if envs == nil {
+		envs = []string{}
+	}
+	envs = append(envs, key)
+	candidates[prefix] = envs
+	return candidates
+}
+
+func getEntryKey(entry string) string {
+	return getEntryKeyAndValue(entry)[0]
+}
+func getEntryValue(entry string) string {
+	return getEntryKeyAndValue(entry)[1]
+}
+func getEntryKeyAndValue(entry string) []string {
+	return strings.SplitN(entry, "=", 2)
 }
 
 /*
